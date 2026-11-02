@@ -72,7 +72,7 @@ Nothing is marked `WINDOWS-VALIDATED` unless it was actually run on Windows, and
 
 | Phase | Milestones | State |
 |---|---|---|
-| Foundation | M0 bootstrap and CI, M1 models and evidence graph, M2 USB output safety | Not started |
+| Foundation | M0 bootstrap and CI, M1 models and evidence graph, M2 USB output safety | M0 in review; M1, M2 not started |
 | Windows core | M3 processes and sockets, M4 hashing and signatures, M5 baselines and self-recognition | Not started |
 | Detection | M6 rule engine and false-positive suite, M7 verification and verdict | Not started |
 | Collectors | M8 persistence, M9 artifacts and remote tools, M10 history, M11 network integrity | Not started |
@@ -94,19 +94,21 @@ Nothing is marked `WINDOWS-VALIDATED` unless it was actually run on Windows, and
 Present now:
 
 ```text
-CLAUDE.md          build contract and milestones
-docs/SPEC.md       product specification
+CLAUDE.md                  build contract and milestones
+.golangci.yml              lint rules enforcing the no-exec, no-host-write, no-network policy
+.github/workflows/ci.yml   CI: lint, test, race, cross-build (ubuntu); build and test (windows)
+cmd/canaveral/             entry point (skeleton: prints version and a pre-implementation notice)
+internal/                  package skeleton (empty doc.go stubs)
+scripts/build.ps1          Windows build script
+docs/                      SPEC, STATUS ledger, ARCHITECTURE, LIMITATIONS, RULES
 ```
 
-Planned (created by milestone M0 onward):
+Planned (created by later milestones):
 
 ```text
-cmd/canaveral/     entry point and CLI
-internal/          collectors, integrity, detection, verification, reporting, TUI, platform code
 configs/           embedded default rules and baselines
-scripts/           build and lab scripts
+scripts/lab/       lab seeding scripts
 testdata/          deterministic fixtures
-docs/              status ledger, architecture, limitations, rules
 ```
 
 ## License

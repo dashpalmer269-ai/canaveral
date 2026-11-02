@@ -1,0 +1,124 @@
+# Enforces the code rules in CLAUDE.md section 1.2.
+# CI runs this twice: once for the host OS and once with GOOS=windows, so
+# //go:build windows files are checked too.
+#
+# Message tags drive the exclusions below:
+#   [exec]       never exempt anywhere
+#   [host-write] exempt only in internal/runtime/output and _test.go files
+#   [network]    exempt only in internal/reputation (not built in v1)
+version: "2"
+
+run:
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - depguard
+    - forbidigo
+    - staticcheck
+    - govet
+    - errcheck
+    - ineffassign
+    - unused
+
+  settings:
+    depguard:
+      rules:
+        no-exec:
+          list-mode: lax
+          files: ["$all"]
+          deny:
+            - pkg: os/exec
+              desc: "[exec] process spawning is forbidden (CLAUDE.md 1.2)"
+        no-ioutil:
+          list-mode: lax
+          files: ["$all"]
+          deny:
+            - pkg: io/ioutil
+              desc: "[host-write] io/ioutil is forbidden; reads use os/io, writes go through internal/runtime/output"
+        no-network:
+          list-mode: lax
+          files: ["$all", "!**/internal/reputation/**"]
+          deny:
+            - pkg: net/http
+              desc: "[network] network code is forbidden outside internal/reputation"
+            - pkg: net/rpc
+              desc: "[network] network code is forbidden outside internal/reputation"
+            - pkg: net/smtp
+              desc: "[network] network code is forbidden outside internal/reputation"
+            - pkg: crypto/tls
+              desc: "[network] network code is forbidden outside internal/reputation"
+            - pkg: golang.org/x/net
+              desc: "[network] network code is forbidden outside internal/reputation"
+            - pkg: google.golang.org/grpc
+              desc: "[network] network code is forbidden outside internal/reputation"
+        fake-test-only:
+          list-mode: lax
+          files: ["$all", "!$test"]
+          deny:
+            - pkg: github.com/dashpalmer269-ai/canaveral/internal/platform/fake
+              desc: "platform/fake may only be imported from _test.go files or files built with the fixture tag"
+
+    forbidigo:
+      analyze-types: true
+      forbid:
+        # Process creation.
+        - pattern: ^os\.StartProcess$
+          pkg: ^os$
+          msg: "[exec] process spawning is forbidden (CLAUDE.md 1.2)"
+        - pattern: ^syscall\.(StartProcess|ForkExec|Exec|CreateProcess|CreateProcessAsUser)$
+          pkg: ^syscall$
+          msg: "[exec] process spawning is forbidden (CLAUDE.md 1.2)"
+        - pattern: ^windows\.(CreateProcess\w*|ShellExecute\w*|WinExec)$
+          pkg: ^golang\.org/x/sys/windows$
+          msg: "[exec] process spawning is forbidden (CLAUDE.md 1.2)"
+
+        # Host writes via os.
+        - pattern: ^os\.(Create|CreateTemp|WriteFile|OpenFile|Mkdir|MkdirAll|MkdirTemp|TempDir|Rename|Remove|RemoveAll|Truncate|Chmod|Chown|Lchown|Chtimes|Symlink|Link)$
+          pkg: ^os$
+          msg: "[host-write] host writes are only allowed in internal/runtime/output (CLAUDE.md 1.2)"
+        - pattern: ^os\.Root\.(Create|OpenFile|WriteFile|Mkdir|MkdirAll|Remove|RemoveAll|Rename|Chmod|Chown|Lchown|Chtimes|Link|Symlink)$
+          pkg: ^os$
+          msg: "[host-write] os.Root write paths are only allowed in internal/runtime/output (CLAUDE.md 1.2)"
+
+        # Host writes via syscall and x/sys/windows.
+        - pattern: ^syscall\.(Creat|Mkdir|Rmdir|Unlink|Rename|Truncate|Ftruncate|CreateDirectory|RemoveDirectory|DeleteFile|MoveFile|SetFileAttributes|SetFileTime|RegCreateKeyEx|RegSetValueEx|RegDeleteKey|RegDeleteValue)$
+          pkg: ^syscall$
+          msg: "[host-write] host writes are only allowed in internal/runtime/output (CLAUDE.md 1.2)"
+        - pattern: ^windows\.(WriteFile|DeleteFile|MoveFile\w*|CopyFile\w*|CreateDirectory|RemoveDirectory|SetFileAttributes|SetFileTime|SetEndOfFile|SetFileInformationByHandle|CreateHardLink|CreateSymbolicLink|RegCreateKeyEx|RegSetValueEx|RegSetKeyValue|RegDeleteKey\w*|RegDeleteValue|RegDeleteTree|RegLoadKey|RegLoadAppKey|RegRestoreKey|RegSaveKey\w*|RegReplaceKey)$
+          pkg: ^golang\.org/x/sys/windows$
+          msg: "[host-write] host writes are only allowed in internal/runtime/output (CLAUDE.md 1.2)"
+        - pattern: ^registry\.(CreateKey|DeleteKey)$
+          pkg: ^golang\.org/x/sys/windows/registry$
+          msg: "[host-write] registry writes are forbidden (CLAUDE.md 1.2)"
+        - pattern: ^registry\.Key\.(Set\w+|DeleteValue)$
+          pkg: ^golang\.org/x/sys/windows/registry$
+          msg: "[host-write] registry writes are forbidden (CLAUDE.md 1.2)"
+
+        # Network access.
+        - pattern: ^net\.(Dial\w*|Listen\w*|Lookup\w*|Resolve\w*|FileConn|FileListener|FilePacketConn)$
+          pkg: ^net$
+          msg: "[network] network code is forbidden outside internal/reputation"
+        - pattern: ^net\.(Dialer|ListenConfig|Resolver)\.\w+$
+          pkg: ^net$
+          msg: "[network] network code is forbidden outside internal/reputation"
+        - pattern: ^(syscall|windows)\.(Socket|Connect|Bind|Listen|Sendto|Recvfrom|WSAStartup|WSASocket|WSAConnect|WSASend\w*|WSARecv\w*)$
+          pkg: ^(syscall|golang\.org/x/sys/windows)$
+          msg: "[network] network code is forbidden outside internal/reputation"
+
+  exclusions:
+    rules:
+      - path: internal/runtime/output/
+        linters: [forbidigo, depguard]
+        text: '\[host-write\]'
+      - path: _test\.go
+        linters: [forbidigo]
+        text: '\[host-write\]'
+      - path: internal/reputation/
+        linters: [forbidigo]
+        text: '\[network\]'
+
+formatters:
+  enable:
+    - gofmt

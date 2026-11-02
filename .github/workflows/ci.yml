@@ -1,0 +1,67 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.27.3"
+  GOLANGCI_LINT_VERSION: "v2.15.0"
+
+jobs:
+  linux:
+    name: lint and test (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Verify modules
+        run: go mod verify
+
+      - name: Vet
+        run: |
+          go vet ./...
+          GOOS=windows go vet ./...
+
+      # Built from source with the pinned Go so it can analyze this module's Go version.
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
+
+      - name: Lint (linux)
+        run: golangci-lint run ./...
+
+      - name: Lint (GOOS=windows)
+        run: GOOS=windows golangci-lint run ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Test with race detector
+        run: CGO_ENABLED=1 go test -race ./...
+
+      - name: Cross-build windows/amd64
+        run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /dev/null ./cmd/canaveral
+
+  windows:
+    name: build and test (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Test (includes //go:build windows files)
+        run: go test ./...
+
+      - name: Build with scripts/build.ps1
+        shell: pwsh
+        run: ./scripts/build.ps1 -Version "0.0.0-ci.${{ github.run_number }}"
