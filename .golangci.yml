@@ -115,7 +115,17 @@ linters:
       - path: _test\.go
         linters: [forbidigo]
         text: '\[host-write\]'
+      # Build tools write build outputs on the developer machine; they are
+      # never linked into Canaveral.exe.
+      - path: ^tools/
+        linters: [forbidigo]
+        text: '\[host-write\]'
       - path: internal/reputation/
+        linters: [forbidigo]
+        text: '\[network\]'
+      # Windows integration tests open loopback sockets in their own process
+      # to check that the socket tables attribute them correctly.
+      - path: internal/(platform/windows|collectors/network)/[^/]*_windows_test\.go
         linters: [forbidigo]
         text: '\[network\]'
 

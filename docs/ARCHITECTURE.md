@@ -1,10 +1,10 @@
 # Architecture
 
-Status: M2. The authoritative design is CLAUDE.md sections 3 and 4. This document describes the implemented system as milestones land.
+Status: M3. The authoritative design is CLAUDE.md sections 3 and 4. This document describes the implemented system as milestones land.
 
 ## Package layout
 
-Implemented: `models`, `evidence`, `platform`, `platform/fake` (M1); `runtime`, `runtime/output`, and the volume inspector in `platform/windows` (M2). The other packages are still empty `doc.go` stubs.
+Implemented: `models`, `evidence`, `platform`, `platform/fake` (M1); `runtime`, `runtime/output`, and the volume inspector in `platform/windows` (M2); `collectors/process`, `collectors/network`, and the process, socket and privilege sources in `platform/windows` (M3). The other packages are still empty `doc.go` stubs.
 
 | Package | Role |
 |---|---|
@@ -90,6 +90,30 @@ If the destination fails (device removed, a different device at the same mount p
 **Lifecycle (`runtime.Lifecycle`).** One cancellation context for the run. Shutdown hooks run once, newest first, each with an equal share of the remaining 5-second budget so a stuck hook cannot starve cleanup. Panics in `Lifecycle.Go` goroutines or in main (`RecoverTo`) are recorded and start shutdown. `os.Interrupt` and `SIGTERM` start shutdown; Go delivers Windows console close, logoff and shutdown events as `SIGTERM`.
 
 **Diagnostic.** `Canaveral.exe diag-output [--output PATH]` prints the volume facts and the decision without writing anything.
+
+## Processes, sockets and attribution (M3)
+
+**Windows sources (`internal/platform/windows`).**
+- `ProcessSource`: Toolhelp snapshot, then each process opened with `PROCESS_QUERY_LIMITED_INFORMATION` only. It reads creation time (`GetProcessTimes`), image path (`QueryFullProcessImageName`), command line (`NtQueryInformationProcess`, `ProcessCommandLineInformation`), protection level (`ProcessProtectionInformation`), session, and the token's user SID. Account names are resolved only for well-known, service and machine-local SIDs. `SeDebugPrivilege` is never enabled, because adjusting the token can write a 4703 audit event.
+- `SocketSource`: `GetExtendedTcpTable(TCP_TABLE_OWNER_MODULE_ALL)` and `GetExtendedUdpTable(UDP_TABLE_OWNER_MODULE)` for IPv4 and IPv6, with `GetOwnerModuleFrom*Entry` per row for the owning module (the service name inside a shared `svchost.exe`). Row layouts are parsed by byte offset in `parse.go`, which has no build tag so it is unit-tested everywhere.
+- `Privileges`: elevation, integrity level and Administrators membership of the tool's own token.
+
+**Process collector (`internal/collectors/process`).** Identity is `ProcessKey{PID, CreateTime}`. A parent is accepted only if it is running and was created no later than the child; otherwise the parent is `Unavailable` with the reason (exited, PID reused, creation time unknown). Every process with unreadable fields produces a coverage note naming the field and the Windows error, plus the protection level when it explains the gap. These are coverage records, never findings.
+
+**Network collector (`internal/collectors/network`).** `Collect` takes a process snapshot, reads the four tables, then takes a second process snapshot. Each socket gets an owner and a confidence:
+
+| Situation | Confidence |
+|---|---|
+| PID present in both snapshots with the same identity | High |
+| PID 4 (System) | High, with a note that the kernel is not the requesting component |
+| Process exited or started during collection | Reduced |
+| Creation time unreadable in either snapshot | Reduced; owner identity Unavailable |
+| Socket entry created before the process started (A5, possible inherited handle) | Lowered to Reduced, not rejected |
+| PID 0, PID in neither snapshot, or PID reused between snapshots | None (unattributed) |
+
+Addresses are classified as Unspecified, Loopback, LinkLocal, Private (RFC 1918, ULA), Public, Multicast, Broadcast, Reserved or Unknown. IPv4-mapped and NAT64 addresses are classified by the embedded IPv4 address. No class is suspicious by itself.
+
+**Manifest.** `cmd/canaveral/canaveral.manifest` requests `requireAdministrator` (A8). `tools/gensyso` turns it into a COFF `.syso` at build time. It is not committed, so `go build` and `go test` produce unmanifested binaries, and `build.ps1 -NoManifest` builds a standard-user test binary. This replaces the third-party `rsrc` tool named in CLAUDE.md section 8.
 
 ## Enforced boundaries
 

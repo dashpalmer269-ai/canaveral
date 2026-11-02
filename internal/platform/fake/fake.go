@@ -17,6 +17,7 @@ import (
 var (
 	_ platform.Clock             = (*Clock)(nil)
 	_ platform.ProcessSource     = (*ProcessSource)(nil)
+	_ platform.PrivilegeSource   = (*Privileges)(nil)
 	_ platform.SocketSource      = (*SocketSource)(nil)
 	_ platform.FileSystem        = (*FileSystem)(nil)
 	_ platform.SignatureVerifier = (*SignatureVerifier)(nil)
@@ -64,6 +65,44 @@ func (p *ProcessSource) Processes(ctx context.Context) ([]models.ProcessRecord, 
 		return nil, p.Err
 	}
 	return slices.Clone(p.Records), nil
+}
+
+// Privileges returns a fixed elevation result, or Err if set.
+type Privileges struct {
+	Info models.ElevationInfo
+	Err  error
+}
+
+// Elevation returns the configured info.
+func (p *Privileges) Elevation(ctx context.Context) (models.ElevationInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return models.ElevationInfo{}, err
+	}
+	return p.Info, p.Err
+}
+
+// ProcessSequence returns a different snapshot on each call, for testing
+// races between snapshots. After the last snapshot it keeps returning the
+// last one.
+type ProcessSequence struct {
+	mu        sync.Mutex
+	Snapshots [][]models.ProcessRecord
+	calls     int
+}
+
+// Processes returns the next snapshot.
+func (p *ProcessSequence) Processes(ctx context.Context) ([]models.ProcessRecord, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.Snapshots) == 0 {
+		return nil, fmt.Errorf("fake: no process snapshots: %w", platform.ErrNotFound)
+	}
+	i := min(p.calls, len(p.Snapshots)-1)
+	p.calls++
+	return slices.Clone(p.Snapshots[i]), nil
 }
 
 // SocketSource returns fixed records per table. A table with neither records

@@ -40,11 +40,12 @@ A repair technician looking at a possibly compromised machine has to answer: *wh
 
 The commands below are the intended interface and will not work until the relevant milestones are done.
 
-One diagnostic command works today (Windows only). It shows where reports would be written, and why, without writing anything:
+Two read-only diagnostic commands work today (Windows only). They write nothing:
 
 ```powershell
-E:\Canaveral.exe diag-output                      # default: E:\Canaveral_Reports on the executable's drive
+E:\Canaveral.exe diag-output                      # where reports would be written, and why
 E:\Canaveral.exe diag-output --output F:\Reports  # check an explicit destination
+E:\Canaveral.exe diag-snapshot                    # privileges, process coverage, every socket with its owner and confidence
 ```
 
 ```powershell
@@ -80,7 +81,7 @@ Nothing is marked `WINDOWS-VALIDATED` unless it was actually run on Windows, and
 | Phase | Milestones | State |
 |---|---|---|
 | Foundation | M0 bootstrap and CI, M1 models and evidence graph, M2 USB output safety | M0, M1, M2 done |
-| Windows core | M3 processes and sockets, M4 hashing and signatures, M5 baselines and self-recognition | M3 in progress |
+| Windows core | M3 processes and sockets, M4 hashing and signatures, M5 baselines and self-recognition | M3 in review |
 | Detection | M6 rule engine and false-positive suite, M7 verification and verdict | Not started |
 | Collectors | M8 persistence, M9 artifacts and remote tools, M10 history, M11 network integrity | Not started |
 | Output | M12 reporting, M13 headless engine and monitoring | Not started |
@@ -106,7 +107,8 @@ CLAUDE.md                  build contract and milestones
 .github/workflows/ci.yml   CI: lint, test, race, cross-build (ubuntu); build and test (windows)
 cmd/canaveral/             entry point (skeleton: prints version and a pre-implementation notice)
 internal/                  package skeleton (empty doc.go stubs)
-scripts/build.ps1          Windows build script
+scripts/build.ps1          Windows build script (-NoManifest for a standard-user test build)
+tools/gensyso/             generates the requireAdministrator manifest resource at build time
 docs/                      SPEC, STATUS ledger, ARCHITECTURE, LIMITATIONS, RULES
 ```
 

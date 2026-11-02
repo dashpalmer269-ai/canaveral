@@ -49,6 +49,13 @@ jobs:
       - name: Cross-build windows/amd64
         run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /dev/null ./cmd/canaveral
 
+      - name: Cross-build with manifest and check it is embedded
+        run: |
+          go run ./tools/gensyso -manifest cmd/canaveral/canaveral.manifest -o cmd/canaveral/rsrc_windows_amd64.syso
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/Canaveral.exe ./cmd/canaveral
+          rm cmd/canaveral/rsrc_windows_amd64.syso
+          test "$(grep -c -a 'level="requireAdministrator"' dist/Canaveral.exe)" -ge 1
+
   windows:
     name: build and test (windows)
     runs-on: windows-latest
@@ -62,6 +69,28 @@ jobs:
       - name: Test (includes //go:build windows files)
         run: go test ./...
 
-      - name: Build with scripts/build.ps1
+      # Verbose, so skipped Windows tests and their logged evidence are visible.
+      - name: Windows integration tests (verbose)
+        run: go test -count=1 -v ./internal/platform/windows/... ./internal/collectors/network/...
+
+      - name: Build release (manifest) and test build (no manifest)
         shell: pwsh
-        run: ./scripts/build.ps1 -Version "0.0.0-ci.${{ github.run_number }}"
+        run: |
+          ./scripts/build.ps1 -Version "0.0.0-ci.${{ github.run_number }}"
+          ./scripts/build.ps1 -Version "0.0.0-ci.${{ github.run_number }}" -NoManifest
+
+      - name: Check the embedded manifest with the Windows resource API
+        shell: pwsh
+        run: |
+          $env:CANAVERAL_EXE = (Resolve-Path dist\Canaveral.exe).Path
+          go test -count=1 -v -run TestReleaseManifest ./tools/gensyso/
+
+      # Read-only smoke run on real Windows. This is CI evidence, not a VM validation.
+      - name: Smoke run (read-only diagnostics)
+        shell: pwsh
+        run: |
+          dist\Canaveral-nomanifest.exe diag-snapshot
+          if ($LASTEXITCODE -ne 0) { throw "diag-snapshot failed with exit code $LASTEXITCODE" }
+          dist\Canaveral-nomanifest.exe diag-output
+          Write-Host "diag-output exit code $LASTEXITCODE (1 is expected here: the runner has no removable drive)"
+          exit 0

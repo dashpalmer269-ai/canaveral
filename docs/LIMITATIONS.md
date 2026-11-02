@@ -50,6 +50,17 @@ The real guarantee comes from code review plus the Procmon and pktmon footprint 
 - If an evicted fact is observed again, it starts a new node with a fresh count. The earlier observations survive only in the eviction summary.
 - Protected evidence is never evicted, even when it alone exceeds the budget. This is reported, but memory is not capped in that case.
 
+## Processes and sockets (M3)
+
+- The Windows process, socket and privilege code has run only on GitHub's windows-latest runner (CI), not yet on a VM, and never as a standard user.
+- `SeDebugPrivilege` is never enabled, so some processes stay partly unreadable even when elevated. They appear as coverage gaps.
+- Account names are not resolved for domain or Azure AD accounts, because the lookup can contact a domain controller or the cloud. The SID is always recorded.
+- The two process snapshots and the socket tables are read at slightly different moments. A process that starts and exits entirely between them is never seen, and its sockets are unattributed.
+- Sockets owned by PID 4 (System) belong to the kernel. The user-mode program that asked for them (for example an HTTP.sys listener) is not identified.
+- The socket timestamp Windows supplies is the socket entry's creation time, not the process's. It is used only as a consistency check.
+- A `requireAdministrator` build cannot run as a standard user at all. The standard-user check uses a separate `-NoManifest` test build, which is not meant for customer use.
+- Socket tables are a point-in-time view. Connections that open and close between reads are missed (see Observation).
+
 ## Observation
 
 - Snapshot polling cannot guarantee observing every connection. Short-lived connections between polls can be missed.

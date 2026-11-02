@@ -23,10 +23,21 @@ type Clock interface {
 	Now() time.Time
 }
 
+// SystemClock is the real clock, in UTC.
+type SystemClock struct{}
+
+// Now returns the current time in UTC.
+func (SystemClock) Now() time.Time { return time.Now().UTC() }
+
 // ProcessSource enumerates running processes. Fields that cannot be read for a
 // process are returned as models.Unavailable, never guessed.
 type ProcessSource interface {
 	Processes(ctx context.Context) ([]models.ProcessRecord, error)
+}
+
+// PrivilegeSource describes the tool's own privileges.
+type PrivilegeSource interface {
+	Elevation(ctx context.Context) (models.ElevationInfo, error)
 }
 
 // SocketSource reads one socket table at a time so each table can fail and be

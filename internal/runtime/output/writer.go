@@ -41,6 +41,9 @@ const (
 
 // AlternatePrompter asks the operator for another destination after the
 // current one became unusable. ok=false means the operator declined.
+// Alternate is called from inside Writer.Flush while the writer is locked, so
+// it must not call any Writer method; anything it needs to show the operator
+// is passed in.
 type AlternatePrompter interface {
 	Alternate(ctx context.Context, lost error, attempt int) (path string, ok bool)
 }

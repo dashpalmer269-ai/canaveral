@@ -22,15 +22,35 @@ func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-func run(args []string, stdout, stderr io.Writer) (code int) {
+func run(args []string, stdout, stderr io.Writer) int {
 	lc := runtime.NewLifecycle(context.Background(), runtime.DefaultShutdownTimeout)
-	defer lc.RecoverTo(&code)
-	stopSignals := lc.WatchSignals()
-	defer stopSignals()
-	defer lc.Shutdown("exit")
+	return guarded(lc, func() int { return dispatch(lc, args, stdout, stderr) })
+}
 
-	if len(args) > 0 && args[0] == "diag-output" {
-		return diagOutput(lc.Context(), args[1:], volumeInspector(), os.Executable, stdout, stderr)
+// guarded runs body under lc: signals start shutdown, a panic is recovered
+// and recorded before shutdown runs, and shutdown always runs. Defers run
+// last-in-first-out, so RecoverTo is deferred last to run first.
+func guarded(lc *runtime.Lifecycle, body func() int) (code int) {
+	stopSignals := lc.WatchSignals()
+	defer lc.Shutdown("exit")
+	defer stopSignals()
+	defer lc.RecoverTo(&code)
+	code = body()
+	if strings.HasPrefix(lc.Cause(), "signal:") {
+		code = runtime.ExitInterrupted
+	}
+	return code
+}
+
+func dispatch(lc *runtime.Lifecycle, args []string, stdout, stderr io.Writer) int {
+	src := platformSources()
+	if len(args) > 0 {
+		switch args[0] {
+		case "diag-output":
+			return diagOutput(lc.Context(), args[1:], src.volumes, os.Executable, stdout, stderr)
+		case "diag-snapshot":
+			return diagSnapshot(lc.Context(), src, stdout)
+		}
 	}
 
 	fs := flag.NewFlagSet("canaveral", flag.ContinueOnError)
@@ -42,9 +62,10 @@ func run(args []string, stdout, stderr io.Writer) (code int) {
 	if *showVersion {
 		return emit(stdout, version+"\n", runtime.ExitOK)
 	}
-	return emit(stderr, fmt.Sprintf("Canaveral %s: pre-implementation build (milestone M2).\n", version)+
-		"No collectors are implemented. Nothing was inspected and no report was produced.\n"+
-		"Available: 'diag-output [--output PATH]' shows where reports would be written, without writing anything.\n", 2)
+	return emit(stderr, fmt.Sprintf("Canaveral %s: pre-release build (milestone M3).\n", version)+
+		"No scan or report exists yet. Read-only diagnostics, which write nothing:\n"+
+		"  diag-output [--output PATH]   where reports would be written, and why\n"+
+		"  diag-snapshot                 privileges, processes and socket attribution\n", 2)
 }
 
 // emit writes text and returns code, or ExitError if the write failed.

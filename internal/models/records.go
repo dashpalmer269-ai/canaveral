@@ -28,6 +28,20 @@ type ProcessRecord struct {
 	UserSID     Value[string]
 	UserName    Value[string]
 	SessionID   Value[uint32]
+	// Protection is the process protection level, for example
+	// "PsProtectedSignerAntimalware-Light", or "None" for an unprotected
+	// process. Protected processes restrict what can be read about them.
+	Protection Value[string]
+}
+
+// ElevationInfo describes the privileges of the tool's own process.
+type ElevationInfo struct {
+	// Elevated reports whether the token is elevated (UAC).
+	Elevated Value[bool]
+	// IntegrityLevel is "Low", "Medium", "High", "System" or the raw RID.
+	IntegrityLevel Value[string]
+	// AdminMember reports whether the token's Administrators group is enabled.
+	AdminMember Value[bool]
 }
 
 // SocketTable names one of the Windows socket tables.
