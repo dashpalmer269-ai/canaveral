@@ -14,7 +14,7 @@ Last updated: 2026-11-02 (M1).
 | Milestone | State |
 |---|---|
 | M0 Bootstrap and tooling | Done (2026-11-02) |
-| M1 Models, interfaces, evidence graph | In review |
+| M1 Models, interfaces, evidence graph | Done (2026-11-02), CI run [41371938185](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41371938185) |
 | M2 to M16 | Not started |
 
 ## M0 tooling (not features; recorded for traceability)
