@@ -145,7 +145,7 @@ func TestUntrustedSignatureIsInvalid(t *testing.T) {
 	if rec.State != models.SignatureInvalid || rec.Source != models.SignatureSourceEmbedded {
 		t.Fatalf("untrusted signature: %+v", rec)
 	}
-	if !strings.Contains(rec.Detail, "UNTRUSTEDROOT") && !strings.Contains(rec.Detail, "CHAINING") {
-		t.Fatalf("detail does not name the chain problem: %s", rec.Detail)
+	if !strings.Contains(rec.Detail, "UNTRUSTEDROOT") {
+		t.Fatalf("detail does not name the untrusted root: %s", rec.Detail)
 	}
 }

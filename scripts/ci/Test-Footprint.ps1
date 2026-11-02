@@ -48,6 +48,19 @@ function Get-AuditEvents([datetime]$Since, [int[]]$Ids) {
             [pscustomobject]$d
         }
 }
+# The generic-write audit rules (FW, KW) also record READ_CONTROL and
+# SYNCHRONIZE, which are not writes. An event counts as a write only if its
+# access mask holds a real write right (or it is a value-modified or deleted
+# event, which always are).
+$fileWriteBits = 0x2 -bor 0x4 -bor 0x10 -bor 0x40 -bor 0x100 -bor 0x10000 -bor 0x40000 -bor 0x80000 # write/append data, EA, delete child, attributes, DELETE, WRITE_DAC, WRITE_OWNER
+$keyWriteBits = 0x2 -bor 0x4 -bor 0x20 -bor 0x10000 -bor 0x40000 -bor 0x80000                      # set value, create subkey, create link, DELETE, WRITE_DAC, WRITE_OWNER
+function Test-IsWrite($e) {
+    if ($e.Id -in 4657, 4660) { return $true }
+    if (-not $e.AccessMask) { return $true } # unknown access: count it, never assume a read
+    $mask = [Convert]::ToInt64($e.AccessMask, 16)
+    $bits = switch ($e.ObjectType) { 'File' { $fileWriteBits } 'Key' { $keyWriteBits } default { $fileWriteBits -bor $keyWriteBits } }
+    return ($mask -band $bits) -ne 0
+}
 $fileIds = 4656, 4663, 4660, 4658
 $regIds = 4656, 4657, 4663, 4660
 $netIds = 5156, 5157, 5158, 5159
@@ -61,12 +74,12 @@ New-ItemProperty -Path HKCU:\Software\CanaveralAuditControl -Name Control -Value
 try { $c = [System.Net.Sockets.TcpClient]::new(); $c.Connect('127.0.0.1', 445); $c.Close() } catch { Write-Host "control connect: $_" }
 Start-Sleep -Seconds 3
 $events = @(Get-AuditEvents $start ($fileIds + $regIds + $netIds | Sort-Object -Unique))
-$ctlFile = @($events | Where-Object { $_.ObjectName -like '*audit-control.txt' })
-$ctlReg = @($events | Where-Object { $_.ObjectName -like '*CanaveralAuditControl*' })
+$ctlFile = @($events | Where-Object { $_.ObjectName -like '*audit-control.txt' -and (Test-IsWrite $_) })
+$ctlReg = @($events | Where-Object { $_.ObjectName -like '*CanaveralAuditControl*' -and (Test-IsWrite $_) })
 $ctlNet = @($events | Where-Object { $_.Id -in $netIds -and $_.Application -like '*pwsh.exe' })
 Write-Host "Positive control: $($ctlFile.Count) file, $($ctlReg.Count) registry, $($ctlNet.Count) network events"
-Assert-True ($ctlFile.Count -gt 0) "the audit captures a file write (positive control)"
-Assert-True ($ctlReg.Count -gt 0) "the audit captures a registry write (positive control)"
+Assert-True ($ctlFile.Count -gt 0) "the audit captures a file write and judges it a write (positive control)"
+Assert-True ($ctlReg.Count -gt 0) "the audit captures a registry write and judges it a write (positive control)"
 Assert-True ($ctlNet.Count -gt 0) "the audit captures a network connection (positive control)"
 Remove-Item -Path HKCU:\Software\CanaveralAuditControl -Recurse -Force
 
@@ -89,16 +102,20 @@ Assert-True ($snapshot.Code -eq 0) "diag-snapshot exits 0"
 
 $events = @(Get-AuditEvents $start ($fileIds + $regIds + $netIds | Sort-Object -Unique))
 $mine = @($events | Where-Object { $_.ProcessName -like '*\Canaveral-audit.exe' -or $_.Application -like '*canaveral-audit.exe' })
-Write-Host "Audit window $($start) to $($end): $($events.Count) audited write/network events from all processes, $($mine.Count) from Canaveral"
-foreach ($e in $mine | Select-Object -First 50) {
-    Write-Host ("  event {0}: object {1} access {2} app {3}" -f $e.Id, $e.ObjectName, $e.AccessList, $e.Application)
-}
-$mineFile = @($mine | Where-Object { $_.Id -in $fileIds -and $_.ObjectType -eq 'File' })
-$mineReg = @($mine | Where-Object { $_.ObjectType -eq 'Key' -or $_.Id -eq 4657 })
 $mineNet = @($mine | Where-Object { $_.Id -in $netIds })
-Assert-True ($mineFile.Count -eq 0) "Canaveral requested no file write access ($($mineFile.Count) events)"
-Assert-True ($mineReg.Count -eq 0) "Canaveral requested no registry write access ($($mineReg.Count) events)"
+$mineObj = @($mine | Where-Object { $_.Id -notin $netIds })
+$mineWrites = @($mineObj | Where-Object { Test-IsWrite $_ })
+$mineReads = @($mineObj | Where-Object { -not (Test-IsWrite $_) })
+Write-Host "Audit window $($start) to $($end): $($events.Count) audited events from all processes; from Canaveral: $($mineWrites.Count) write, $($mineReads.Count) read-type, $($mineNet.Count) network"
+foreach ($e in ($mineWrites + $mineNet) | Select-Object -First 50) {
+    Write-Host ("  VIOLATION event {0}: type {1} object {2} mask {3} app {4}" -f $e.Id, $e.ObjectType, $e.ObjectName, $e.AccessMask, $e.Application)
+}
+if ($mineReads.Count -gt 0) {
+    Write-Host "Read-type access recorded by the generic-write rule (not writes):"
+    $mineReads | Group-Object { "$($_.ObjectType) $($_.ObjectName) mask $($_.AccessMask)" } | Sort-Object Count -Descending |
+        Select-Object -First 15 | ForEach-Object { Write-Host ("  {0,5} x {1}" -f $_.Count, $_.Name) }
+}
+Assert-True ($mineWrites.Count -eq 0) "Canaveral requested no file or registry write access ($($mineWrites.Count) events)"
 Assert-True ($mineNet.Count -eq 0) "Canaveral made no network connections or binds ($($mineNet.Count) events)"
-Assert-True ($mine.Count -eq 0) "Canaveral produced no audited events at all ($($mine.Count))"
 
 Complete-Script

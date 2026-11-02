@@ -40,13 +40,13 @@ var trustNames = map[uint32]string{
 	trustBadDigest:            "TRUST_E_BAD_DIGEST: the file's contents do not match its signature",
 	trustCertSignature:        "TRUST_E_CERT_SIGNATURE: a certificate's signature could not be verified",
 	trustBasicConstraints:     "TRUST_E_BASIC_CONSTRAINTS: a certificate in the chain is not allowed to issue certificates",
-	trustTimeStamp:            "TRUST_E_TIME_STAMP: the timestamp signature could not be verified",
+	trustTimeStamp:            "TRUST_E_TIME_STAMP: the timestamp signature could not be verified; with network retrieval disabled this can mean the timestamp authority's chain could not be completed offline, so it is not proof of a bad timestamp",
 	trustExplicitDistrust:     "TRUST_E_EXPLICIT_DISTRUST: the signing certificate is explicitly distrusted",
 	trustSubjectNotTrusted:    "TRUST_E_SUBJECT_NOT_TRUSTED: the trust policy did not accept the file",
 	trustSystemError:          "TRUST_E_SYSTEM_ERROR: a system error occurred during verification",
 	certExpired:               "CERT_E_EXPIRED: the signing certificate expired and the signature has no valid timestamp",
 	certUntrustedRoot:         "CERT_E_UNTRUSTEDROOT: the certificate chain ends in a root that is not trusted",
-	certChaining:              "CERT_E_CHAINING: the certificate chain could not be built to a trusted root",
+	certChaining:              "CERT_E_CHAINING: the certificate chain could not be built to a trusted root offline; usually an intermediate or root certificate that Windows would download is not cached on this machine, so trust could not be established, which is not proof of a bad signature",
 	certRevoked:               "CERT_E_REVOKED: the signing certificate is revoked",
 	certWrongUsage:            "CERT_E_WRONG_USAGE: the certificate is not valid for code signing",
 	cryptSecuritySettings:     "CRYPT_E_SECURITY_SETTINGS: a local security policy prevented verification",
@@ -59,10 +59,16 @@ var trustNames = map[uint32]string{
 // verification. Only these produce SignatureInvalid; any result not listed
 // here or among the "no signature" codes is reported as Unavailable, so the
 // tool never claims "invalid" without proof.
+//
+// CERT_E_CHAINING and TRUST_E_TIME_STAMP are deliberately absent: with
+// network retrieval disabled (A2), Windows returns them when a certificate it
+// would normally download is not cached, which happens for legitimate files
+// (seen in CI on a Microsoft-signed System32 DLL). CERT_E_UNTRUSTEDROOT stays:
+// the chain was built and ends at a root that is not trusted.
 var invalidCodes = map[uint32]bool{
 	trustBadDigest: true, trustCertSignature: true, trustBasicConstraints: true,
-	trustTimeStamp: true, trustExplicitDistrust: true, certExpired: true,
-	certUntrustedRoot: true, certChaining: true, certRevoked: true, certWrongUsage: true,
+	trustExplicitDistrust: true, certExpired: true,
+	certUntrustedRoot: true, certRevoked: true, certWrongUsage: true,
 }
 
 // noSignatureCodes mean "no signature of this kind": for the embedded check

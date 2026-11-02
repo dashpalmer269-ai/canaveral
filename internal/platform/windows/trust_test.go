@@ -28,15 +28,16 @@ func TestClassifyTrust(t *testing.T) {
 		{trustBadDigest, 0, models.SignatureInvalid, "do not match"},
 		{trustCertSignature, 0, models.SignatureInvalid, "CERT_SIGNATURE"},
 		{certUntrustedRoot, 0, models.SignatureInvalid, "UNTRUSTEDROOT"},
-		{certChaining, 0, models.SignatureInvalid, "CHAINING"},
 		{certExpired, 0, models.SignatureInvalid, "EXPIRED"},
 		{trustExplicitDistrust, 0, models.SignatureInvalid, "DISTRUST"},
 		{certRevoked, 0, models.SignatureInvalid, "REVOKED"},
 		{certWrongUsage, 0, models.SignatureInvalid, "WRONG_USAGE"},
-		{trustTimeStamp, 0, models.SignatureInvalid, "TIME_STAMP"},
 		{trustBasicConstraints, 0, models.SignatureInvalid, "BASIC_CONSTRAINTS"},
 
 		// Not proof of anything: Unavailable, never Invalid.
+		// Offline chain building can fail for legitimate files (A2).
+		{certChaining, 0, models.SignatureUnavailable, "not proof of a bad signature"},
+		{trustTimeStamp, 0, models.SignatureUnavailable, "completed offline"},
 		{trustSystemError, 0, models.SignatureUnavailable, "SYSTEM_ERROR"},
 		{trustSubjectNotTrusted, 0, models.SignatureUnavailable, "SUBJECT_NOT_TRUSTED"},
 		{cryptSecuritySettings, 0, models.SignatureUnavailable, "SECURITY_SETTINGS"},
