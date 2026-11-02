@@ -13,7 +13,7 @@ Last updated: 2026-11-02 (M0).
 
 | Milestone | State |
 |---|---|
-| M0 Bootstrap and tooling | In review |
+| M0 Bootstrap and tooling | Done (2026-11-02) |
 | M1 to M16 | Not started |
 
 ## M0 tooling (not features; recorded for traceability)
@@ -21,10 +21,10 @@ Last updated: 2026-11-02 (M0).
 | Item | State | Evidence |
 |---|---|---|
 | `go.mod`, Go 1.27.3 pinned (CI uses the same) | Done | `go.mod`, `.github/workflows/ci.yml` |
-| Windows cross-build of skeleton | Passes locally | `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build ./cmd/canaveral` on Debian 13, 2026-11-02 |
-| Lint rules (depguard, forbidigo, staticcheck) | Proven locally | Deliberate-violation run, see M0 milestone report; CI throwaway-branch proof pending |
-| CI (ubuntu lint/test/race/cross-build; windows build/test) | Written, not yet run | `.github/workflows/ci.yml` |
-| `scripts/build.ps1` | Written, not yet run | Runs in the CI windows job |
+| Windows cross-build of skeleton | Passes in CI | Local (Debian 13) and CI run [41370427194](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41370427194), 2026-11-02 |
+| Lint rules (depguard, forbidigo, staticcheck) | Proven in CI | Branch `throwaway/m0-lint-proof` (deliberate `os/exec` + `os.WriteFile`) failed the lint step in run [41370436114](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41370436114) with both violations reported |
+| CI (ubuntu lint/test/race/cross-build; windows build/test) | Green on `main` | Run [41370427194](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41370427194) |
+| `scripts/build.ps1` | Runs in CI | windows-latest, run 41370427194: built `dist\Canaveral.exe` 0.0.0-ci.1, SHA256 `8DE5D097FB32B746E7486FD63DC537F0EB95E9BBD754F53DB544686D98D4326E`. A CI build is not a Windows VM validation. |
 
 ## Features
 
