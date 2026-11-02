@@ -150,3 +150,16 @@ func TestAccountLookupIsLocal(t *testing.T) {
 		t.Error("with an unknown machine SID, no account-domain SID may be treated as local")
 	}
 }
+
+func TestIntegrityRID(t *testing.T) {
+	for sid, want := range map[string]uint32{"S-1-16-12288": 0x3000, "S-1-16-8192": 0x2000, "S-1-16-16384": 0x4000, "S-1-16-0": 0} {
+		if got, err := integrityRID(sid); err != nil || got != want {
+			t.Errorf("integrityRID(%s) = %d, %v", sid, got, err)
+		}
+	}
+	for _, bad := range []string{"", "S-1-16-", "S-1-5-18", "S-1-16-abc", "S-1-16-99999999999"} {
+		if _, err := integrityRID(bad); err == nil {
+			t.Errorf("integrityRID(%q) accepted", bad)
+		}
+	}
+}

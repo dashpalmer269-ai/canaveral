@@ -4,6 +4,7 @@ package windows
 
 import (
 	"context"
+	"runtime"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -56,10 +57,14 @@ func integrityLevel(tok windows.Token) models.Value[string] {
 	if err := windows.GetTokenInformation(tok, windows.TokenIntegrityLevel, &buf[0], n, &n); err != nil {
 		return models.Unavailable[string]("GetTokenInformation(TokenIntegrityLevel): " + err.Error())
 	}
-	sid := (*windows.Tokenmandatorylabel)(unsafe.Pointer(&buf[0])).Label.Sid
-	count := sid.SubAuthorityCount()
-	if count == 0 {
-		return models.Unavailable[string]("integrity SID has no RID")
+	// The SID lives inside buf. x/sys's SubAuthority helpers turn the address
+	// Windows returns into a Go pointer, which checkptr rejects for Go-heap
+	// memory, so the RID is taken from the SID's string form instead.
+	sid := (*windows.Tokenmandatorylabel)(unsafe.Pointer(&buf[0])).Label.Sid.String()
+	runtime.KeepAlive(buf)
+	rid, err := integrityRID(sid)
+	if err != nil {
+		return models.Unavailable[string](err.Error())
 	}
-	return models.Known(integrityName(sid.SubAuthority(uint32(count - 1))))
+	return models.Known(integrityName(rid))
 }

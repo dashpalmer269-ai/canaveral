@@ -161,6 +161,19 @@ func protectionName(b byte) string {
 	}
 }
 
+// integrityRID returns the RID of a mandatory label SID ("S-1-16-<rid>").
+func integrityRID(sid string) (uint32, error) {
+	const prefix = "S-1-16-"
+	if len(sid) <= len(prefix) || sid[:len(prefix)] != prefix {
+		return 0, fmt.Errorf("%q is not a mandatory integrity label SID", sid)
+	}
+	v, err := strconv.ParseUint(sid[len(prefix):], 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("integrity SID %q: %w", sid, err)
+	}
+	return uint32(v), nil
+}
+
 // integrityName names a mandatory integrity level RID.
 func integrityName(rid uint32) string {
 	switch rid {
