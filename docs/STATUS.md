@@ -7,14 +7,15 @@ Every feature has exactly one maturity level (CLAUDE.md 1.1). Levels are never w
 - `SCAFFOLD`: types or stubs only, not functional. A planned feature with no code yet is also `SCAFFOLD`; at most an empty package `doc.go` exists.
 - `WINDOWS-VALIDATED` and `FOOTPRINT-AUDITED` can only be set from the owner's Windows VM runs, with evidence recorded in the [validation log](#validation-log). Claude Code on Linux never sets them.
 
-Last updated: 2026-11-02 (M0).
+Last updated: 2026-11-02 (M1).
 
 ## Milestone progress
 
 | Milestone | State |
 |---|---|
 | M0 Bootstrap and tooling | Done (2026-11-02) |
-| M1 to M16 | Not started |
+| M1 Models, interfaces, evidence graph | In review |
+| M2 to M16 | Not started |
 
 ## M0 tooling (not features; recorded for traceability)
 
@@ -30,13 +31,13 @@ Last updated: 2026-11-02 (M0).
 
 | Feature | Milestone | Level | Notes |
 |---|---|---|---|
-| Shared data models | M1 | SCAFFOLD | |
-| Evidence graph (nodes, edges, evidence states) | M1 | SCAFFOLD | |
-| Evidence-state transition rules | M1 | SCAFFOLD | |
-| Observation deduplication | M1 | SCAFFOLD | |
-| Bounded retention and memory budget (A13) | M1 | SCAFFOLD | |
-| Platform interfaces | M1 | SCAFFOLD | |
-| Platform fakes (test and fixture builds only) | M1 | SCAFFOLD | |
+| Shared data models | M1 | FIXTURE-TESTED | `Value[T]` (known or unavailable, never both), severity order and text round trip; record types are plain data |
+| Evidence graph (nodes, edges, evidence states) | M1 | FIXTURE-TESTED | Stable IDs, edge-kind endpoint validation, deep-copy accessors, concurrent use under `-race` |
+| Evidence-state transition rules | M1 | FIXTURE-TESTED | Full 6x6 matrix against an independent expected table; corroboration needs 2 classes, contradiction needs evidence |
+| Observation deduplication | M1 | FIXTURE-TESTED | 500 identical observations become 1 node with count 500, sequentially and from 20 goroutines |
+| Bounded retention and memory budget (A13) | M1 | FIXTURE-TESTED | Sizes are estimates; findings, Medium+ (by max severity) and their linked evidence are never evicted |
+| Platform interfaces | M1 | SCAFFOLD | Interface definitions only, which is all M1 calls for; Windows implementations start in M3 |
+| Platform fakes (test and fixture builds only) | M1 | FIXTURE-TESTED | Unconfigured fixtures return errors, never empty results |
 | Executable-drive detection | M2 | SCAFFOLD | |
 | Output-path validation | M2 | SCAFFOLD | |
 | Output writer (sole writer) | M2 | SCAFFOLD | |

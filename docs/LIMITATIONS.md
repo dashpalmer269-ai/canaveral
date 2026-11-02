@@ -29,6 +29,13 @@ The lint rules in `.golangci.yml` catch the common ways to spawn processes, writ
 
 The real guarantee comes from code review plus the Procmon and pktmon footprint audit (CLAUDE.md section 7.2).
 
+## Evidence retention
+
+- Memory usage is an estimate (fixed per-node and per-edge costs plus string lengths, and payload sizes when the payload reports one), not a measurement of the Go heap.
+- The budget is enforced only when the engine calls `EnforceBudget` after a snapshot, so usage can exceed the budget by up to one snapshot's worth of evidence between calls.
+- If an evicted fact is observed again, it starts a new node with a fresh count. The earlier observations survive only in the eviction summary.
+- Protected evidence is never evicted, even when it alone exceeds the budget. This is reported, but memory is not capped in that case.
+
 ## Observation
 
 - Snapshot polling cannot guarantee observing every connection. Short-lived connections between polls can be missed.
