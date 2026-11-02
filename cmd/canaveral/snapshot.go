@@ -20,6 +20,8 @@ type sources struct {
 	processes  platform.ProcessSource
 	sockets    platform.SocketSource
 	privileges platform.PrivilegeSource
+	files      platform.FileSystem
+	signatures platform.SignatureVerifier
 }
 
 // diagSnapshot prints privileges, the process inventory's coverage and every

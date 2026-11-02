@@ -50,6 +50,8 @@ func dispatch(lc *runtime.Lifecycle, args []string, stdout, stderr io.Writer) in
 			return diagOutput(lc.Context(), args[1:], src.volumes, os.Executable, stdout, stderr)
 		case "diag-snapshot":
 			return diagSnapshot(lc.Context(), src, stdout)
+		case "diag-integrity":
+			return diagIntegrity(lc.Context(), args[1:], src, stdout, stderr)
 		}
 	}
 
@@ -62,10 +64,11 @@ func dispatch(lc *runtime.Lifecycle, args []string, stdout, stderr io.Writer) in
 	if *showVersion {
 		return emit(stdout, version+"\n", runtime.ExitOK)
 	}
-	return emit(stderr, fmt.Sprintf("Canaveral %s: pre-release build (milestone M3).\n", version)+
+	return emit(stderr, fmt.Sprintf("Canaveral %s: pre-release build (milestone M4).\n", version)+
 		"No scan or report exists yet. Read-only diagnostics, which write nothing:\n"+
 		"  diag-output [--output PATH]   where reports would be written, and why\n"+
-		"  diag-snapshot                 privileges, processes and socket attribution\n", 2)
+		"  diag-snapshot                 privileges, processes and socket attribution\n"+
+		"  diag-integrity [--dir D] [--limit N] [FILE...]   hashes and signature checks\n", 2)
 }
 
 // emit writes text and returns code, or ExitError if the write failed.

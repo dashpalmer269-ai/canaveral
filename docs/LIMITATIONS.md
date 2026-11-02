@@ -62,6 +62,16 @@ The real guarantee comes from code review plus the Procmon and pktmon footprint 
 - A `requireAdministrator` build cannot run as a standard user at all. The standard-user check uses a separate `-NoManifest` test build, which is not meant for customer use.
 - Socket tables are a point-in-time view. Connections that open and close between reads are missed (see Observation).
 
+## Hashing and signatures (M4)
+
+- A catalog-signed Windows file that has been modified no longer matches any catalog entry, so Windows reports it like a file that was never signed: **Unsigned**, not Invalid. Only embedded signatures can show tampering as Invalid. Rules treat a protected system name without a valid Microsoft signature as suspicious regardless (PROC-001).
+- Revocation is never checked, by design (A2): a certificate revoked after signing still verifies as Valid. Every result says "Unavailable (offline by design)" for revocation.
+- Signature results depend on the catalogs installed on the investigated machine. A damaged catalog database makes valid system files look unsigned.
+- Change detection compares the file's identity (size, last-write time, file ID) before and after reading. Windows can delay updating the last-write time until the writer closes its handle, so a same-size, in-place modification by a writer that keeps the file open may not be detected.
+- When a file's identity cannot be read at all, its digest is still reported (it is the hash of the bytes actually read), with a note that a change during reading could not be ruled out, and it is never cached.
+- Hash and signature results are cached by file identity for one run only.
+- The tool reads files with read access only, but Windows may still update their last-access time (see Footprint).
+
 ## Observation
 
 - Snapshot polling cannot guarantee observing every connection. Short-lived connections between polls can be missed.

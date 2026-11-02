@@ -10,5 +10,7 @@ func platformSources() sources {
 		processes:  windows.ProcessSource{},
 		sockets:    windows.SocketSource{},
 		privileges: windows.Privileges{},
+		files:      windows.FileSystem{},
+		signatures: windows.SignatureVerifier{},
 	}
 }

@@ -149,15 +149,57 @@ const (
 	SignatureSourceNone     SignatureSource = "None"
 )
 
+// RevocationOfflineByDesign is the revocation status of every signature
+// check: revocation is never checked, because it can go online and write the
+// CryptNet cache (CLAUDE.md A2).
+const RevocationOfflineByDesign = "Unavailable (offline by design)"
+
 // SignatureRecord is the result of verifying one file.
 type SignatureRecord struct {
-	State    SignatureState
-	Source   SignatureSource
-	Signer   Value[string]
+	State  SignatureState
+	Source SignatureSource
+	// Signer is the signing certificate's display name, for example
+	// "Microsoft Windows". For a catalog signature it is the catalog's signer.
+	Signer Value[string]
+	// SignedAt is the trusted timestamp, when the signature has one.
 	SignedAt Value[time.Time]
+	// CatalogFile is the catalog that vouched for the file (Source Catalog).
+	CatalogFile Value[string]
+	// Revocation is always RevocationOfflineByDesign.
+	Revocation string
+	// Identity is the identity of the exact file handle that was verified.
+	Identity Value[FileIdentity]
 	// Detail carries the verifier's status text or the reason a check was
 	// unavailable.
 	Detail string
+}
+
+// HashState is the outcome of hashing one file.
+type HashState string
+
+// Hash states.
+const (
+	HashComplete HashState = "Hashed"
+	// HashChanged means the file changed while it was read, so the bytes read
+	// do not represent one version of it and no hash is reported.
+	HashChanged     HashState = "ChangedDuringInspection"
+	HashUnavailable HashState = "Unavailable"
+)
+
+// HashRecord is the result of hashing one file.
+type HashRecord struct {
+	Path  string
+	State HashState
+	// SHA256 is the lowercase hex digest. It is known only when State is
+	// HashComplete.
+	SHA256 Value[string]
+	// Identity is the file's identity when it was opened.
+	Identity Value[FileIdentity]
+	// BytesRead is how many bytes were hashed.
+	BytesRead uint64
+	// Cached reports whether the digest came from the identity-keyed cache.
+	Cached bool
+	Reason string
 }
 
 // RegistryHive is a registry root readable without loading hives.

@@ -1,10 +1,10 @@
 # Architecture
 
-Status: M3. The authoritative design is CLAUDE.md sections 3 and 4. This document describes the implemented system as milestones land.
+Status: M4. The authoritative design is CLAUDE.md sections 3 and 4. This document describes the implemented system as milestones land.
 
 ## Package layout
 
-Implemented: `models`, `evidence`, `platform`, `platform/fake` (M1); `runtime`, `runtime/output`, and the volume inspector in `platform/windows` (M2); `collectors/process`, `collectors/network`, and the process, socket and privilege sources in `platform/windows` (M3). The other packages are still empty `doc.go` stubs.
+Implemented: `models`, `evidence`, `platform`, `platform/fake` (M1); `runtime`, `runtime/output`, and the volume inspector in `platform/windows` (M2); `collectors/process`, `collectors/network`, and the process, socket and privilege sources in `platform/windows` (M3); `integrity`, and the file system and signature verifier in `platform/windows` (M4). The other packages are still empty `doc.go` stubs.
 
 | Package | Role |
 |---|---|
@@ -114,6 +114,21 @@ If the destination fails (device removed, a different device at the same mount p
 Addresses are classified as Unspecified, Loopback, LinkLocal, Private (RFC 1918, ULA), Public, Multicast, Broadcast, Reserved or Unknown. IPv4-mapped and NAT64 addresses are classified by the embedded IPv4 address. No class is suspicious by itself.
 
 **Manifest.** `cmd/canaveral/canaveral.manifest` requests `requireAdministrator` (A8). `tools/gensyso` turns it into a COFF `.syso` at build time. It is not committed, so `go build` and `go test` produce unmanifested binaries, and `build.ps1 -NoManifest` builds a standard-user test binary. This replaces the third-party `rsrc` tool named in CLAUDE.md section 8.
+
+## Integrity: hashing and signatures (M4)
+
+**File access.** `platform/windows.FileSystem` opens files with `FILE_READ_DATA | FILE_READ_ATTRIBUTES | SYNCHRONIZE` only, sharing `READ | WRITE | DELETE` so investigated files are never locked, and `\\?\` paths for long names. `Identity()` comes from `GetFileInformationByHandle` on the same handle.
+
+**Hashing (`internal/integrity`).** Streaming SHA-256. A digest is reported only when the file provably did not change while it was read: the identity before and after reading (same handle) must match, the byte count must equal the size, and re-opening the path must reach the same file. Otherwise the state is `ChangedDuringInspection` and no digest is given. Digests and conclusive signature results are cached by file identity, never by path.
+
+**Signatures (`platform/windows.SignatureVerifier`).** For one file handle:
+
+1. Embedded Authenticode with `WinVerifyTrust` (`WTD_CHOICE_FILE`).
+2. If there is none, the catalog member hash (SHA-256, then SHA-1) is looked up in the system catalogs and verified with `WTD_CHOICE_CATALOG`.
+
+Every call is offline (`WTD_REVOKE_NONE`, `WTD_REVOCATION_CHECK_NONE`, `WTD_CACHE_ONLY_URL_RETRIEVAL`) and its state is always closed. Results are `Valid`, `Invalid`, `Unsigned` or `Unavailable`, with the source (`Embedded`, `Catalog`, `None`), signer, timestamp, catalog file and the identity of the verified handle. `Invalid` is only reported for specific result codes that prove a signature is present and failing; unrecognized results are `Unavailable`. The result-code mapping lives in an untagged file and is unit-tested on every platform.
+
+**Diagnostic.** `Canaveral.exe diag-integrity [--dir D] [--limit N] [FILE...]` hashes and verifies files read-only and lists anything not validly signed.
 
 ## Enforced boundaries
 

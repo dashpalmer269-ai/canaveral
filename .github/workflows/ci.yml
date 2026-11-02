@@ -77,8 +77,15 @@ jobs:
           go test -race -count=1 ./...
 
       # Verbose, so skipped Windows tests and their logged evidence are visible.
+      # The untrusted-signature fixture is built from scratch for this step.
       - name: Windows integration tests (verbose)
-        run: go test -count=1 -v ./internal/platform/windows/... ./internal/collectors/network/...
+        shell: pwsh
+        run: |
+          $fixture = ./scripts/ci/New-UntrustedSignedFixture.ps1 -OutDir (Join-Path $env:RUNNER_TEMP fixtures) | Select-Object -Last 1
+          $env:CANAVERAL_UNTRUSTED_SIGNED = $fixture
+          $env:CANAVERAL_REQUIRE_FIXTURES = "1"
+          go test -count=1 -v ./internal/platform/windows/... ./internal/collectors/network/... ./internal/integrity/...
+          if ($LASTEXITCODE -ne 0) { throw "Windows integration tests failed" }
 
       - name: Build release (manifest) and test build (no manifest)
         shell: pwsh
@@ -132,6 +139,10 @@ jobs:
       - name: Run as a standard (non-administrator) user
         shell: pwsh
         run: ./scripts/ci/Test-StandardUser.ps1 -NoManifestExe dist\Canaveral-nomanifest.exe -ManifestExe dist\Canaveral.exe
+
+      - name: Footprint audit with Windows auditing (diag-integrity on 500 files, diag-snapshot, diag-output)
+        shell: pwsh
+        run: ./scripts/ci/Test-Footprint.ps1 -Exe dist\Canaveral-nomanifest.exe
 
       - name: Microsoft Defender scan of the builds (informational)
         shell: pwsh

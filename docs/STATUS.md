@@ -8,7 +8,7 @@ Every feature has exactly one maturity level (CLAUDE.md 1.1). Levels are never w
 - `WINDOWS-VALIDATED` and `FOOTPRINT-AUDITED` can only be set from the owner's Windows VM runs, with evidence recorded in the [validation log](#validation-log). Claude Code on Linux never sets them.
 - Windows code that has run with passing assertions on GitHub's `windows-latest` runner is recorded as `FIXTURE-TESTED` plus a "Windows CI" note. That is more than `COMPILES` and less than `WINDOWS-VALIDATED`: the runner is real Windows, but it is an ephemeral, admin-run VM with no removable media, so it does not replace the owner's VM. See [Windows CI evidence](#windows-ci-evidence).
 
-Last updated: 2026-11-02 (M3).
+Last updated: 2026-11-02 (M4).
 
 ## Milestone progress
 
@@ -18,7 +18,8 @@ Last updated: 2026-11-02 (M3).
 | M1 Models, interfaces, evidence graph | Done (2026-11-02), CI run [41371938185](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41371938185) |
 | M2 Runtime and output safety | Done (2026-11-02), CI run [41374731797](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41374731797). Owner VM check of drive-type detection (`diag-output`) still pending |
 | M3 Windows foundation: privilege, processes, sockets, correlation | Done (2026-11-02), CI run [41379188920](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41379188920). Owner VM runs and Defender run still pending |
-| M4 to M16 | Not started |
+| M4 Integrity: hashing and signatures | In review |
+| M5 to M16 | Not started |
 
 ## M0 tooling (not features; recorded for traceability)
 
@@ -61,14 +62,14 @@ Last updated: 2026-11-02 (M3).
 | Process-socket correlation by PID + creation time | M3 | FIXTURE-TESTED | Two process snapshots around the socket read expose exits, starts and PID reuse |
 | Socket attribution confidence | M3 | FIXTURE-TESTED | High / Reduced / None, each with a reason; PID 0 and unresolvable owners are unattributed |
 | Inaccessible-process coverage records | M3 | FIXTURE-TESTED | Per-process gaps with the Windows error, protection level named; never findings |
-| Streaming SHA-256 hashing | M4 | SCAFFOLD | |
-| File identity and hash cache | M4 | SCAFFOLD | |
-| Change-during-inspection detection | M4 | SCAFFOLD | |
-| Embedded Authenticode verification (A1) | M4 | SCAFFOLD | |
-| Catalog signature verification (A1) | M4 | SCAFFOLD | |
-| Offline, write-free trust configuration (A2) | M4 | SCAFFOLD | |
-| Signer and publisher extraction | M4 | SCAFFOLD | |
-| Timestamp-signature handling | M4 | SCAFFOLD | |
+| Streaming SHA-256 hashing | M4 | FIXTURE-TESTED | 1 MiB chunks, cancellable; Windows file opener requests only `FILE_READ_DATA|FILE_READ_ATTRIBUTES|SYNCHRONIZE` with full sharing. Windows CI checks pending the M4 run |
+| File identity and hash cache | M4 | FIXTURE-TESTED | Keyed by volume serial + file index + size + last-write time, never by path; bounded LRU; only clean results cached |
+| Change-during-inspection detection | M4 | FIXTURE-TESTED | Identity before/after on the same handle, byte count vs size, path re-opened afterwards; no digest is reported for a changed file |
+| Embedded Authenticode verification (A1) | M4 | COMPILES | `WinVerifyTrust`, `WTD_CHOICE_FILE`, on the tool's own handle. Result-code mapping fixture-tested; Windows CI checks pending the M4 run |
+| Catalog signature verification (A1) | M4 | COMPILES | `CryptCATAdminCalcHashFromFileHandle2` (SHA-256, then SHA-1), `CryptCATAdminEnumCatalogFromHash`, `WTD_CHOICE_CATALOG`. Windows CI checks pending the M4 run |
+| Offline, write-free trust configuration (A2) | M4 | COMPILES | `WTD_REVOKE_NONE`, `WTD_REVOCATION_CHECK_NONE`, `WTD_CACHE_ONLY_URL_RETRIEVAL`, state always closed. CI footprint audit pending the M4 run |
+| Signer and publisher extraction | M4 | COMPILES | `WTHelperGetProvSignerFromChain` + `CertGetNameString`; struct layouts asserted in Windows tests |
+| Timestamp-signature handling | M4 | COMPILES | Counter-signer time from the provider data; Unavailable when there is no timestamp |
 | Embedded `baseline.yaml`, `ruleset.yaml`, `remote_tools.yaml` | M5 | SCAFFOLD | |
 | Config versioning | M5 | SCAFFOLD | |
 | External config override, hash and banner | M5 | SCAFFOLD | |
