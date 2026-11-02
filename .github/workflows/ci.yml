@@ -69,6 +69,13 @@ jobs:
       - name: Test (includes //go:build windows files)
         run: go test ./...
 
+      # The race detector needs cgo; the runner image ships a MinGW C compiler.
+      - name: Test with race detector (windows)
+        shell: pwsh
+        run: |
+          $env:CGO_ENABLED = "1"
+          go test -race -count=1 ./...
+
       # Verbose, so skipped Windows tests and their logged evidence are visible.
       - name: Windows integration tests (verbose)
         run: go test -count=1 -v ./internal/platform/windows/... ./internal/collectors/network/...
@@ -95,3 +102,37 @@ jobs:
           dist\Canaveral-nomanifest.exe diag-output
           Write-Host "diag-output exit code $LASTEXITCODE (1 is expected here: the runner has no removable drive)"
           exit 0
+
+      # The real writer on real NTFS, then the operator's checksum check.
+      - name: Writer on a real non-system volume, verified with Get-FileHash
+        shell: pwsh
+        run: |
+          $data = (Get-Volume | Where-Object { $_.DriveLetter -and "$($_.DriveLetter):" -ne $env:SystemDrive -and $_.DriveType -eq 'Fixed' } | Select-Object -First 1).DriveLetter
+          if (-not $data) { throw "no non-system fixed volume on this runner" }
+          $env:CANAVERAL_TEST_OUTPUT = "${data}:\canaveral-ci-writer-${{ github.run_id }}"
+          $env:CANAVERAL_TEST_SYSTEM_PATH = "$env:SystemDrive\canaveral-ci-must-not-exist"
+          $env:CANAVERAL_REQUIRE_OUTPUT = "1"
+          go test -count=1 -v -run 'TestReal' ./internal/runtime/output/
+          if ($LASTEXITCODE -ne 0) { throw "writer tests failed" }
+          $files = Get-ChildItem $env:CANAVERAL_TEST_OUTPUT -Recurse -File
+          $artifacts = $files | Where-Object { $_.Extension -ne '.sha256' }
+          if ($artifacts.Count -ne 2 -or $files.Count -ne 4) { throw "unexpected layout: $($files.FullName -join ', ')" }
+          foreach ($a in $artifacts) {
+            $expected = ((Get-Content "$($a.FullName).sha256" -Raw) -split '\s+')[0]
+            $actual = (Get-FileHash $a.FullName -Algorithm SHA256).Hash
+            if ($actual -ne $expected) { throw "$($a.Name): Get-FileHash $actual does not match companion $expected" }
+            Write-Host "Get-FileHash matches companion: $($a.Name) $actual"
+          }
+          Remove-Item $env:CANAVERAL_TEST_OUTPUT -Recurse -Force
+
+      - name: Output destination safety on real Windows
+        shell: pwsh
+        run: ./scripts/ci/Test-OutputSafety.ps1 -Exe dist\Canaveral-nomanifest.exe
+
+      - name: Run as a standard (non-administrator) user
+        shell: pwsh
+        run: ./scripts/ci/Test-StandardUser.ps1 -NoManifestExe dist\Canaveral-nomanifest.exe -ManifestExe dist\Canaveral.exe
+
+      - name: Microsoft Defender scan of the builds (informational)
+        shell: pwsh
+        run: ./scripts/ci/Scan-Defender.ps1 -Files dist\Canaveral.exe, dist\Canaveral-nomanifest.exe

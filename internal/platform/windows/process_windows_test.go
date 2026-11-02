@@ -102,3 +102,22 @@ func TestElevation(t *testing.T) {
 	}
 	t.Logf("elevated=%v integrity=%v admins=%v", info.Elevated, info.IntegrityLevel, info.AdminMember)
 }
+
+// csrss.exe runs as a WinTcb-Light protected process on every supported
+// Windows version, so the PS_PROTECTION decoding can be asserted, not just
+// logged.
+func TestCsrssIsRecognizedAsProtected(t *testing.T) {
+	found := 0
+	for _, p := range processes(t) {
+		if !strings.EqualFold(p.Name, "csrss.exe") {
+			continue
+		}
+		found++
+		if prot, ok := p.Protection.Get(); !ok || prot != "PsProtectedSignerWinTcb-Light" {
+			t.Errorf("csrss.exe pid %d protection = %q (%s)", p.PID, prot, p.Protection.Reason())
+		}
+	}
+	if found == 0 {
+		t.Fatal("no csrss.exe process found")
+	}
+}
