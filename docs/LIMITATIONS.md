@@ -24,7 +24,7 @@ These are disclosed, never suppressed or erased.
 ## Output destination (M2)
 
 - The volume inspector's Windows code has only run on GitHub's windows-latest runner, which has no removable media. Removable and USB detection has not been checked on real hardware or a VM yet.
-- Drives created with `SUBST`, and volumes whose GUID cannot be read, are refused, because the tool cannot confirm they are not the system volume.
+- Drives created with `SUBST`, and volumes whose GUID cannot be read, are refused, because the tool cannot confirm they are not the system volume. On Windows, `GetVolumePathName` fails for a SUBST drive ("The parameter is incorrect"), so the refusal reason names an inspection failure rather than the drive behind the SUBST mapping.
 - A USB volume mounted into a folder (instead of a drive letter) is refused when the path passes through the mount point, because it looks like a junction.
 - Output to network shares is always refused, since writing there means network traffic from the tool.
 - Free space is checked when the destination is chosen, not before every write. A write that runs out of space is handled as a destination failure (data kept in memory, alternate destination offered).
@@ -52,7 +52,8 @@ The real guarantee comes from code review plus the Procmon and pktmon footprint 
 
 ## Processes and sockets (M3)
 
-- The Windows process, socket and privilege code has run only on GitHub's windows-latest runner (CI), not yet on a VM, and never as a standard user.
+- The Windows process, socket and privilege code has run only on GitHub's windows-latest runner (CI, including as a freshly created standard user), not yet on the owner's VM.
+- Run as a standard user, most other processes cannot be opened at all, so their creation times are unknown and their sockets are attributed with Reduced confidence. This is reported, not hidden.
 - `SeDebugPrivilege` is never enabled, so some processes stay partly unreadable even when elevated. They appear as coverage gaps.
 - Account names are not resolved for domain or Azure AD accounts, because the lookup can contact a domain controller or the cloud. The SID is always recorded.
 - The two process snapshots and the socket tables are read at slightly different moments. A process that starts and exits entirely between them is never seen, and its sockets are unattributed.
