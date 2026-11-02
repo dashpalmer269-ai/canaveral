@@ -1,10 +1,10 @@
 # Architecture
 
-Status: M1. The authoritative design is CLAUDE.md sections 3 and 4. This document describes the implemented system as milestones land.
+Status: M2. The authoritative design is CLAUDE.md sections 3 and 4. This document describes the implemented system as milestones land.
 
 ## Package layout
 
-`models`, `evidence`, `platform` and `platform/fake` are implemented (M1). The other packages are still empty `doc.go` stubs.
+Implemented: `models`, `evidence`, `platform`, `platform/fake` (M1); `runtime`, `runtime/output`, and the volume inspector in `platform/windows` (M2). The other packages are still empty `doc.go` stubs.
 
 | Package | Role |
 |---|---|
@@ -61,6 +61,35 @@ Status: M1. The authoritative design is CLAUDE.md sections 3 and 4. This documen
 ## Platform boundary (`internal/platform`, M1)
 
 Collectors depend only on these interfaces: `Clock`, `ProcessSource`, `SocketSource` (one table per call), `FileSystem`/`File` (identity read from the same handle as the content), `SignatureVerifier`, `RegistryReader` (no write or hive-load methods exist) and `EventLogReader`. Failures wrap `ErrNotFound`, `ErrAccessDenied` or `ErrUnsupported`. `internal/platform/fake` implements all of them for tests.
+
+## Runtime and output safety (`internal/runtime`, `internal/runtime/output`, M2)
+
+**Destination decision (`runtime.ValidateOutput`).** The default destination is `<volume root of the executable>\Canaveral_Reports`; `--output` gives an explicit one. Nothing is ever substituted: a refused request returns a `Rejection` listing every reason and no destination.
+
+| Condition | Default | Explicit `--output` |
+|---|---|---|
+| System volume, or system status unknown | refused | refused |
+| Removable drive type, or USB/SD/MMC bus | accepted | accepted |
+| Fixed, non-USB, non-system | refused | accepted |
+| Remote (network), CD-ROM, RAM disk, unknown | refused | refused |
+| Read-only, free space unknown or below 50 MiB | refused | refused |
+| Path through a symlink/junction/mount point, or not a directory | refused | refused |
+| Relative path, or executable location unknown | refused | refused |
+
+**Writer (`output.Writer`)**, the only code allowed to write files:
+1. Re-inspects the destination volume before creating anything.
+2. Creates missing parent directories one level at a time and a new `scan_<UTC timestamp>` directory (suffix `_2`, `_3`, ... on collision), recording each in the ledger.
+3. Re-inspects the volume of the new directory, so a redirect between validation and creation is caught and undone.
+4. Accepts only `report.json` and `report.md`. Each is written as `<name>.partial`, flushed, renamed into place, read back and hash-checked, then given a `<name>.sha256` companion (`<hex>  <name>`).
+5. Before every flush, confirms the volume is still present and still the same device (volume GUID).
+
+If the destination fails (device removed, a different device at the same mount point, write or read-back failure), the artifacts stay in memory (`Pending`), a warning says so, and an `AlternatePrompter` is asked for another destination, validated exactly like `--output`. Declining leaves the data in memory and returns `ErrNotSaved`.
+
+**Ledger and cleanup.** `runtime.Ledger` records every directory and file the writer creates, with identity captured from the tool's own handle. `output.Cleanup` removes only temporary files and now-empty directories from the ledger, and only when the object at the path still has the recorded file ID and, for files, the recorded size. Final reports are never removed. `Ledger.Review` gives the footprint review: resources inside and outside approved roots, leftovers, and the Windows-generated artifacts the tool cannot control.
+
+**Lifecycle (`runtime.Lifecycle`).** One cancellation context for the run. Shutdown hooks run once, newest first, each with an equal share of the remaining 5-second budget so a stuck hook cannot starve cleanup. Panics in `Lifecycle.Go` goroutines or in main (`RecoverTo`) are recorded and start shutdown. `os.Interrupt` and `SIGTERM` start shutdown; Go delivers Windows console close, logoff and shutdown events as `SIGTERM`.
+
+**Diagnostic.** `Canaveral.exe diag-output [--output PATH]` prints the volume facts and the decision without writing anything.
 
 ## Enforced boundaries
 

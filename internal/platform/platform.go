@@ -64,6 +64,12 @@ type RegistryReader interface {
 	ReadKey(ctx context.Context, hive models.RegistryHive, path string) (models.RegistryKey, error)
 }
 
+// VolumeInspector describes the volume that holds a path. The path does not
+// have to exist yet, but its volume must.
+type VolumeInspector interface {
+	Volume(ctx context.Context, path string) (models.VolumeInfo, error)
+}
+
 // EventLogReader reads event log channels without changing their settings.
 type EventLogReader interface {
 	Channel(ctx context.Context, name string) (models.ChannelInfo, error)

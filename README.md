@@ -40,6 +40,13 @@ A repair technician looking at a possibly compromised machine has to answer: *wh
 
 The commands below are the intended interface and will not work until the relevant milestones are done.
 
+One diagnostic command works today (Windows only). It shows where reports would be written, and why, without writing anything:
+
+```powershell
+E:\Canaveral.exe diag-output                      # default: E:\Canaveral_Reports on the executable's drive
+E:\Canaveral.exe diag-output --output F:\Reports  # check an explicit destination
+```
+
 ```powershell
 # Build (from the repo root, once the code exists)
 .\scripts\build.ps1
@@ -72,7 +79,7 @@ Nothing is marked `WINDOWS-VALIDATED` unless it was actually run on Windows, and
 
 | Phase | Milestones | State |
 |---|---|---|
-| Foundation | M0 bootstrap and CI, M1 models and evidence graph, M2 USB output safety | M0, M1 done; M2 in progress |
+| Foundation | M0 bootstrap and CI, M1 models and evidence graph, M2 USB output safety | M0, M1 done; M2 in review |
 | Windows core | M3 processes and sockets, M4 hashing and signatures, M5 baselines and self-recognition | Not started |
 | Detection | M6 rule engine and false-positive suite, M7 verification and verdict | Not started |
 | Collectors | M8 persistence, M9 artifacts and remote tools, M10 history, M11 network integrity | Not started |
