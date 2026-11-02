@@ -18,7 +18,7 @@ Last updated: 2026-11-02 (M4).
 | M1 Models, interfaces, evidence graph | Done (2026-11-02), CI run [41371938185](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41371938185) |
 | M2 Runtime and output safety | Done (2026-11-02), CI run [41374731797](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41374731797). Owner VM check of drive-type detection (`diag-output`) still pending |
 | M3 Windows foundation: privilege, processes, sockets, correlation | Done (2026-11-02), CI run [41379188920](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41379188920). Owner VM runs and Defender run still pending |
-| M4 Integrity: hashing and signatures | In review |
+| M4 Integrity: hashing and signatures | Done (2026-11-02), CI run [41383281752](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41383281752). Owner VM Procmon/pktmon audit still pending |
 | M5 to M16 | Not started |
 
 ## M0 tooling (not features; recorded for traceability)
@@ -62,14 +62,14 @@ Last updated: 2026-11-02 (M4).
 | Process-socket correlation by PID + creation time | M3 | FIXTURE-TESTED | Two process snapshots around the socket read expose exits, starts and PID reuse |
 | Socket attribution confidence | M3 | FIXTURE-TESTED | High / Reduced / None, each with a reason; PID 0 and unresolvable owners are unattributed |
 | Inaccessible-process coverage records | M3 | FIXTURE-TESTED | Per-process gaps with the Windows error, protection level named; never findings |
-| Streaming SHA-256 hashing | M4 | FIXTURE-TESTED | 1 MiB chunks, cancellable; Windows file opener requests only `FILE_READ_DATA|FILE_READ_ATTRIBUTES|SYNCHRONIZE` with full sharing. Windows CI checks pending the M4 run |
+| Streaming SHA-256 hashing | M4 | FIXTURE-TESTED | 1 MiB chunks, cancellable; Windows file opener requests only `FILE_READ_DATA|FILE_READ_ATTRIBUTES|SYNCHRONIZE` with full sharing. Windows CI: asserted on windows-latest (run 41383281752) |
 | File identity and hash cache | M4 | FIXTURE-TESTED | Keyed by volume serial + file index + size + last-write time, never by path; bounded LRU; only clean results cached |
 | Change-during-inspection detection | M4 | FIXTURE-TESTED | Identity before/after on the same handle, byte count vs size, path re-opened afterwards; no digest is reported for a changed file |
-| Embedded Authenticode verification (A1) | M4 | COMPILES | `WinVerifyTrust`, `WTD_CHOICE_FILE`, on the tool's own handle. Result-code mapping fixture-tested; Windows CI checks pending the M4 run |
-| Catalog signature verification (A1) | M4 | COMPILES | `CryptCATAdminCalcHashFromFileHandle2` (SHA-256, then SHA-1), `CryptCATAdminEnumCatalogFromHash`, `WTD_CHOICE_CATALOG`. Windows CI checks pending the M4 run |
-| Offline, write-free trust configuration (A2) | M4 | COMPILES | `WTD_REVOKE_NONE`, `WTD_REVOCATION_CHECK_NONE`, `WTD_CACHE_ONLY_URL_RETRIEVAL`, state always closed. CI footprint audit pending the M4 run |
-| Signer and publisher extraction | M4 | COMPILES | `WTHelperGetProvSignerFromChain` + `CertGetNameString`; struct layouts asserted in Windows tests |
-| Timestamp-signature handling | M4 | COMPILES | Counter-signer time from the provider data; Unavailable when there is no timestamp |
+| Embedded Authenticode verification (A1) | M4 | FIXTURE-TESTED | `WinVerifyTrust`, `WTD_CHOICE_FILE`, on the tool's own handle. Result-code mapping fixture-tested; Windows CI: asserted on windows-latest (run 41383281752) |
+| Catalog signature verification (A1) | M4 | FIXTURE-TESTED | `CryptCATAdminCalcHashFromFileHandle2` (SHA-256, then SHA-1), `CryptCATAdminEnumCatalogFromHash`, `WTD_CHOICE_CATALOG`. Windows CI: asserted on windows-latest (run 41383281752) |
+| Offline, write-free trust configuration (A2) | M4 | FIXTURE-TESTED | `WTD_REVOKE_NONE`, `WTD_REVOCATION_CHECK_NONE`, `WTD_CACHE_ONLY_URL_RETRIEVAL`, state always closed. Windows CI footprint audit (run 41383281752): 0 write requests and 0 network events over 503 verifications; only `READ_CONTROL` on `AppData\LocalLow` (CryptNet cache parent) |
+| Signer and publisher extraction | M4 | FIXTURE-TESTED | `WTHelperGetProvSignerFromChain` + `CertGetNameString`; struct layouts asserted in Windows tests. Windows CI (run 41383281752): Microsoft Windows / Microsoft Windows Publisher / Microsoft Corporation / fixture signer read correctly |
+| Timestamp-signature handling | M4 | FIXTURE-TESTED | Counter-signer time from the provider data; Unavailable when there is no timestamp. Windows CI (run 41383281752): timestamps read for svchost, explorer, lsass, pwsh |
 | Embedded `baseline.yaml`, `ruleset.yaml`, `remote_tools.yaml` | M5 | SCAFFOLD | |
 | Config versioning | M5 | SCAFFOLD | |
 | External config override, hash and banner | M5 | SCAFFOLD | |
@@ -176,3 +176,4 @@ Real Windows runs on GitHub's `windows-latest` runner. Not a VM validation: the 
 | Date | Run | What was asserted |
 |---|---|---|
 | 2026-11-02 | [41379188920](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41379188920) | Full test suite, also under `-race` (cgo). Own process fully described (image, command line, SID, local account name, creation time); Idle has no invented values; 15 protected processes decoded, `csrss.exe` asserted WinTcb-Light; own TCPv4/TCPv6/UDPv4/UDPv6 sockets found with exact address, port, state and owner; all svchost sockets named their service; own listener attributed High end to end. Real report written to non-system NTFS, companions match `Get-FileHash`. System drive refused directly, via SUBST, via a junction and via `\\localhost\C$` mapped as a network drive; virtual disk reported as FileBackedVirtual, refused by default, accepted explicitly; nothing created by `diag-output`. As a fresh non-admin account: `elevated=false`, integrity Medium, 123 of 146 processes reported as coverage gaps, exit 0; the `requireAdministrator` build was refused by Windows without elevation. Defender on-demand scan clean. |
+| 2026-11-02 | [41383281752](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41383281752) | M4. svchost, explorer and lsass Valid (Embedded on this Windows build, Microsoft signers, timestamps read); 503 System32 files verified: 408 Valid via Catalog, 93 via Embedded, 1 Unsigned (extensionless data file), 1 Unavailable (Microsoft Azure Code Sign DLL whose chain cannot be completed offline; first reported Invalid, which was a false positive and is fixed). Clean fixture (script signed by an untrusted throwaway certificate) is Invalid with CERT_E_UNTRUSTEDROOT. Unsigned test binary is Unsigned; missing file and locked SAM are Unavailable. Real file appended to mid-hash is ChangedDuringInspection. File opener never blocks another writer, rename or delete. Footprint audit (Windows auditing, global write SACLs and WFP connection auditing, positive control captured): 0 write requests and 0 network events by Canaveral. |

@@ -82,7 +82,7 @@ Nothing is marked `WINDOWS-VALIDATED` unless it was actually run on Windows, and
 | Phase | Milestones | State |
 |---|---|---|
 | Foundation | M0 bootstrap and CI, M1 models and evidence graph, M2 USB output safety | M0, M1, M2 done |
-| Windows core | M3 processes and sockets, M4 hashing and signatures, M5 baselines and self-recognition | M3 done; M4 in review |
+| Windows core | M3 processes and sockets, M4 hashing and signatures, M5 baselines and self-recognition | M3, M4 done; M5 next |
 | Detection | M6 rule engine and false-positive suite, M7 verification and verdict | Not started |
 | Collectors | M8 persistence, M9 artifacts and remote tools, M10 history, M11 network integrity | Not started |
 | Output | M12 reporting, M13 headless engine and monitoring | Not started |
