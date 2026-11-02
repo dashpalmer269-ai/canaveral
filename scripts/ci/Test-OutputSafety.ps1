@@ -49,10 +49,13 @@ if ($data) {
     $mustNotExist.Add("$data\canaveral-ci-accepted")
 
     # 4. A junction on the data drive that leads to the system drive.
+    # GetVolumePathName follows the junction, so the real target volume is
+    # inspected and refused as the system volume; the path-component link
+    # check is a second layer behind that.
     $junction = "$data\canaveral-ci-junction"
     New-Item -ItemType Junction -Path $junction -Target "$sysDrive\" | Out-Null
     try {
-        Expect-Refused "junction to the system drive" "$junction\Reports" 'link, junction or mount point'
+        Expect-Refused "junction to the system drive" "$junction\Reports" 'is the system volume'
     } finally {
         Remove-Item $junction -Force
     }
@@ -77,7 +80,7 @@ if ($LASTEXITCODE -eq 0) {
 $vhd = Join-Path $env:RUNNER_TEMP "canaveral-ci.vhdx"
 $dp = Join-Path $env:RUNNER_TEMP "canaveral-ci-diskpart.txt"
 @"
-create vdisk file="$vhd" maximum=64 type=expandable
+create vdisk file="$vhd" maximum=256 type=expandable
 select vdisk file="$vhd"
 attach vdisk
 create partition primary
