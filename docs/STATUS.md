@@ -15,7 +15,7 @@ Last updated: 2026-11-02 (M2).
 |---|---|
 | M0 Bootstrap and tooling | Done (2026-11-02) |
 | M1 Models, interfaces, evidence graph | Done (2026-11-02), CI run [41371938185](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41371938185) |
-| M2 Runtime and output safety | In review |
+| M2 Runtime and output safety | Done (2026-11-02), CI run [41374731797](https://github.com/dashpalmer269-ai/canaveral/actions/runs/41374731797). Owner VM check of drive-type detection (`diag-output`) still pending |
 | M3 to M16 | Not started |
 
 ## M0 tooling (not features; recorded for traceability)
@@ -39,7 +39,7 @@ Last updated: 2026-11-02 (M2).
 | Bounded retention and memory budget (A13) | M1 | FIXTURE-TESTED | Sizes are estimates; findings, Medium+ (by max severity) and their linked evidence are never evicted |
 | Platform interfaces | M1 | SCAFFOLD | Interface definitions only, which is all M1 calls for; Windows implementations start in M3 |
 | Platform fakes (test and fixture builds only) | M1 | FIXTURE-TESTED | Unconfigured fixtures return errors, never empty results |
-| Executable-drive detection | M2 | COMPILES | Windows `VolumeInspector` (drive type, bus type via `IOCTL_STORAGE_QUERY_PROPERTY`, volume GUID, read-only flag, free space, system-volume match). Its `windows`-tagged tests run on GitHub's windows-latest runner; that is not a VM validation and no removable media exists there. Owner VM check: `Canaveral.exe diag-output` |
+| Executable-drive detection | M2 | COMPILES | Windows `VolumeInspector` (drive type, bus type via `IOCTL_STORAGE_QUERY_PROPERTY`, volume GUID, read-only flag, free space, system-volume match). Its `windows`-tagged tests passed on GitHub's windows-latest runner (run 41374731797); that is not a VM validation and no removable media exists there. Owner VM check: `Canaveral.exe diag-output` |
 | Output-path validation | M2 | FIXTURE-TESTED | Every rejection rule, all reasons reported, 72-combination sweep proving no system-drive fallback, link and junction refusal |
 | Output writer (sole writer) | M2 | FIXTURE-TESTED | Strict layout, `.partial` + fsync + rename + read-back verification, `.sha256` companions; volume checked before and after creating directories |
 | Footprint ledger and footprint review | M2 | FIXTURE-TESTED | Review splits inside/outside approved roots and leftovers, and discloses Windows-generated artifacts |
