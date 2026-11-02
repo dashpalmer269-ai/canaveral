@@ -17,8 +17,10 @@ import (
 func TestReleaseManifest(t *testing.T) {
 	exe := os.Getenv("CANAVERAL_EXE")
 	if exe == "" {
-		if os.Getenv("GITHUB_ACTIONS") == "true" {
-			t.Fatal("CANAVERAL_EXE must be set in CI")
+		// The CI step that checks the release build sets CANAVERAL_REQUIRE_EXE,
+		// so a missing path fails there instead of silently skipping.
+		if os.Getenv("CANAVERAL_REQUIRE_EXE") == "1" {
+			t.Fatal("CANAVERAL_EXE must be set when CANAVERAL_REQUIRE_EXE=1")
 		}
 		t.Skip("CANAVERAL_EXE not set")
 	}

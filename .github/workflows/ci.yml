@@ -83,6 +83,7 @@ jobs:
         shell: pwsh
         run: |
           $env:CANAVERAL_EXE = (Resolve-Path dist\Canaveral.exe).Path
+          $env:CANAVERAL_REQUIRE_EXE = "1"
           go test -count=1 -v -run TestReleaseManifest ./tools/gensyso/
 
       # Read-only smoke run on real Windows. This is CI evidence, not a VM validation.
