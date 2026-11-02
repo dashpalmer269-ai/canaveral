@@ -160,6 +160,8 @@ type SignatureRecord struct {
 	Source SignatureSource
 	// Signer is the signing certificate's display name, for example
 	// "Microsoft Windows". For a catalog signature it is the catalog's signer.
+	// Unless State is SignatureValid this is only what the signature claims:
+	// the certificate chain was not verified, and reports must say so.
 	Signer Value[string]
 	// SignedAt is the trusted timestamp, when the signature has one.
 	SignedAt Value[time.Time]

@@ -113,8 +113,8 @@ func (SignatureVerifier) Verify(ctx context.Context, path string) models.Signatu
 	runtime.KeepAlive(&fileInfo)
 	if state != models.SignatureUnsigned {
 		rec.State, rec.Source, rec.Detail = state, models.SignatureSourceEmbedded, detail
-		if state == models.SignatureUnavailable {
-			rec.Source = models.SignatureSourceNone
+		if state == models.SignatureUnavailable && !rec.Signer.IsKnown() {
+			rec.Source = models.SignatureSourceNone // nothing shows a signature was even read
 		}
 		return rec
 	}
@@ -200,7 +200,7 @@ func catalogAttempt(rec models.SignatureRecord, h windows.Handle, path16 *uint16
 	runtime.KeepAlive(hash)
 	rec.State, rec.Detail = state, detail+" (catalog "+catPath+", "+alg+" member hash)"
 	rec.Source = models.SignatureSourceCatalog
-	if state == models.SignatureUnavailable {
+	if state == models.SignatureUnavailable && !rec.Signer.IsKnown() {
 		rec.Source = models.SignatureSourceNone
 	}
 	return true, rec
@@ -229,7 +229,10 @@ func verifyTrust(rec *models.SignatureRecord, choice uint32, union unsafe.Pointe
 		last = uint32(e)
 	}
 	state, detail := classifyTrust(code, last)
-	if state == models.SignatureValid || state == models.SignatureInvalid {
+	if state != models.SignatureUnsigned {
+		// Also for Unavailable: when the chain could not be completed offline
+		// the signature still names its signer, which the record keeps (as
+		// the signature's claim, since the state is not Valid).
 		readSigner(rec, data.StateData)
 	}
 
